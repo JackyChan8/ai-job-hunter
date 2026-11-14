@@ -1,0 +1,46 @@
+services:
+  bot:
+    build:
+      context: ../..
+      dockerfile: docker/app/Dockerfile
+    image: ai-job-hunter:latest
+    container_name: ai-job-hunter-bot
+    command: ["python", "-m", "scripts.run_source_manager"]
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_PATH: /app/db/job_hunter.db
+      CANDIDATE_PROFILE_PATH: /app/data/candidate_profile.json
+      RESUME_PATH: /app/data/resume.pdf
+    volumes:
+      - ../../data:/app/data:ro
+      - app_data:/app/db
+    restart: unless-stopped
+    init: true
+
+  listener:
+    image: ai-job-hunter:latest
+    build:
+      context: ../..
+      dockerfile: docker/app/Dockerfile
+    container_name: ai-job-hunter-listener
+    command: ["python", "-m", "scripts.run_telegram_listener"]
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_PATH: /app/db/job_hunter.db
+      CANDIDATE_PROFILE_PATH: /app/data/candidate_profile.json
+      RESUME_PATH: /app/data/resume.pdf
+      TELEGRAM_SESSION_PATH: /app/credentials/telegram_user
+    volumes:
+      - ../../data:/app/data:ro
+      - app_data:/app/db
+      - telegram_credentials:/app/credentials
+    depends_on:
+      - bot
+    restart: unless-stopped
+    init: true
+
+volumes:
+  app_data:
+  telegram_credentials:

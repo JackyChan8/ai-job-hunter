@@ -1,0 +1,41 @@
+# Git and IDE
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.swp
+*.swo
+
+# Python caches and virtual environments
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.egg-info
+.venv
+venv
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Runtime data is mounted as a volume, not baked into the image
+data/
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Build and test artifacts
+build/
+dist/
+.coverage
+htmlcov/
+.pytest_cache/
+tests/
+
+# OS files
+.DS_Store
+Thumbs.db
