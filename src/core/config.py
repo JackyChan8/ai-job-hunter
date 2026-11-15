@@ -12,6 +12,7 @@ class AppSettings(BaseSettings):
     # OpenRouter
     OPENROUTER_API_KEY: SecretStr
     OPENROUTER_MODEL: str = "nvidia/nemotron-3.5-lightning:free"
+    OPENROUTER_VISION_MODEL: str = "google/gemini-2.5-flash"  # Модель с поддержкой изображений
 
     # LangSmith tracing is optional
     LANGCHAIN_TRACING_V2: bool = False

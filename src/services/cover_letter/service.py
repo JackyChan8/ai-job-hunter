@@ -29,6 +29,7 @@ class CoverLetterService:
         candidate_profile: dict,
         resume_text: str = "",
         max_attempts: int = 2,
+        language: str = "русском",
     ) -> dict:
         feedback = None
         last_review = None
@@ -40,6 +41,7 @@ class CoverLetterService:
                 candidate_profile=candidate_profile,
                 resume_text=resume_text,
                 feedback=feedback,
+                language=language,
             )
 
             review = self.reviewer.review(

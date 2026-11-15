@@ -9,6 +9,7 @@ from src.db import (
     init_db,
     save_telegram_source,
 )
+from src.services.candidate import get_setup_status
 from src.services.vacancy.pipeline import VacancyPipeline
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class TelegramVacancyListener:
     SOURCE_REFRESH_INTERVAL = 30
+    SETUP_CHECK_INTERVAL = 30
     DISCOVERY_INTERVAL = 6 * 60 * 60
 
     MAX_DIALOGS_TO_SCAN = 500
@@ -403,8 +405,35 @@ class TelegramVacancyListener:
                 chat_title,
             )
 
+    async def wait_for_setup(self):
+        """Ничего не запускаем, пока в боте не загружено резюме
+        и не заполнен профиль. Проверка повторяется автоматически."""
+
+        announced = False
+
+        while True:
+            status = get_setup_status()
+
+            if status.complete:
+                break
+
+            if not announced:
+                logger.warning(
+                    "Настройка не завершена, Listener ожидает. "
+                    "Открой бота и выполни /setup. Осталось: %s.",
+                    ", ".join(status.missing_labels),
+                )
+                announced = True
+
+            await asyncio.sleep(self.SETUP_CHECK_INTERVAL)
+
+        if announced:
+            logger.info("Настройка завершена. Запускаем Listener.")
+
     async def start(self):
         init_db()
+
+        await self.wait_for_setup()
 
         await self.client.connect()
 

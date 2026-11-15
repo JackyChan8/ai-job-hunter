@@ -1,9 +1,5 @@
 import asyncio
-import json
 import logging
-from pathlib import Path
-
-from pypdf import PdfReader
 
 from src.core import settings
 from src.db import (
@@ -13,6 +9,11 @@ from src.db import (
     save_vacancy,
 )
 from src.integrations.telegram import send_vacancy
+from src.services.candidate import (
+    get_setup_status,
+    load_candidate_profile,
+    load_resume_text,
+)
 from src.services.cover_letter.service import CoverLetterService
 from src.services.vacancy.identity import create_fingerprint
 from src.services.vacancy.matcher import VacancyMatcher
@@ -26,34 +27,7 @@ class VacancyPipeline:
         self.analyzer = VacancyAnalyzer()
         self.matcher = VacancyMatcher()
         self.cover_letter_service = CoverLetterService()
-        self.candidate_profile = self._load_candidate_profile()
-        self.resume_text = self._load_resume_text()
         init_db()
-
-    @staticmethod
-    def _load_candidate_profile() -> dict:
-        path = Path(settings.CANDIDATE_PROFILE_PATH)
-        if not path.exists():
-            raise FileNotFoundError(f"Не найден профиль кандидата: {path}")
-
-        with path.open("r", encoding="utf-8") as file:
-            return json.load(file)
-
-    @staticmethod
-    def _load_resume_text() -> str:
-        path = Path(settings.RESUME_PATH)
-        if not path.exists():
-            logger.warning(
-                "Резюме не найдено (%s). Будет использован только профиль.", path
-            )
-            return ""
-
-        try:
-            reader = PdfReader(str(path))
-            return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
-        except Exception:
-            logger.exception("Не удалось прочитать PDF-резюме")
-            return ""
 
     async def process(
         self,
@@ -62,6 +36,14 @@ class VacancyPipeline:
     ) -> None:
         if not vacancy_text or not vacancy_text.strip():
             logger.info("Пустое сообщение. Пропускаем.")
+            return
+
+        # Пока не загружено резюме и не заполнен профиль, вакансии не обрабатываем.
+        if not get_setup_status().complete:
+            logger.warning(
+                "Настройка не завершена (резюме и профиль). "
+                "Вакансия пропущена. Заверши настройку в боте: /setup"
+            )
             return
 
         # Анализ и оценка — синхронные вызовы LLM.
@@ -101,8 +83,8 @@ class VacancyPipeline:
         letter_result = await asyncio.to_thread(
             self.cover_letter_service.generate_checked,
             vacancy=vacancy,
-            candidate_profile=self.candidate_profile,
-            resume_text=self.resume_text,
+            candidate_profile=load_candidate_profile(),
+            resume_text=load_resume_text(),
             max_attempts=settings.COVER_LETTER_MAX_ATTEMPTS,
         )
 

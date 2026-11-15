@@ -95,6 +95,64 @@ def format_vacancy_message(
 """.strip()
 
 
+def format_manual_summary(
+    vacancy: VacancyData,
+    match: VacancyMatch | None,
+) -> str:
+    lines = [
+        "✅ Вакансия разобрана",
+        "",
+        f"💼 {vacancy.title or 'Должность не указана'}",
+        f"🏢 {vacancy.company or 'Компания не указана'}",
+    ]
+
+    if vacancy.salary:
+        lines.append(f"💰 {vacancy.salary}")
+
+    place = " · ".join(filter(None, (vacancy.location, vacancy.work_format)))
+    if place:
+        lines.append(f"📍 {place}")
+
+    if match is not None:
+        lines.append("")
+        lines.append(f"⭐ Совпадение: {match.score}/100 ({match.recommendation})")
+
+        if match.matched_skills:
+            lines.append(f"✅ Совпадает: {', '.join(match.matched_skills[:8])}")
+        if match.missing_skills:
+            lines.append(f"⚠️ Не хватает: {', '.join(match.missing_skills[:8])}")
+
+    return "\n".join(lines)
+
+
+def format_manual_review_note(review: dict, review_passed: bool) -> str:
+    if not review:
+        return "🔍 Проверку письма выполнить не удалось — прочитай его внимательно."
+
+    score = review.get("overall_score", "нет оценки")
+    factual = review.get("factual_accuracy", "нет оценки")
+
+    if review_passed:
+        return (
+            f"🔍 Проверка пройдена ✅ (оценка {score}/100, достоверность {factual}/100)\n"
+            "Письмо подготовлено AI — перед отправкой перечитай его."
+        )
+
+    lines = [
+        f"🔍 Проверка пройдена не полностью ⚠️ (оценка {score}/100, достоверность {factual}/100)"
+    ]
+
+    unsupported = review.get("unsupported_claims") or []
+    if unsupported:
+        lines.append("")
+        lines.append("Не подтверждено резюме:")
+        lines.extend(f"• {item}" for item in unsupported)
+
+    lines.append("")
+    lines.append("Проверь письмо вручную и убери лишнее.")
+    return "\n".join(lines)
+
+
 def split_telegram_text(text: str, limit: int = SAFE_MESSAGE_LENGTH) -> list[str]:
     """Разбивает длинный текст по границам строк, не теряя содержимое."""
     if len(text) <= limit:

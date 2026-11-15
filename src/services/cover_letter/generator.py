@@ -14,9 +14,10 @@ class CoverLetterGenerator:
         candidate_profile: dict,
         resume_text: str = "",
         feedback: dict | None = None,
+        language: str = "русском",
     ) -> str:
 
-        system_prompt = """
+        system_prompt = f"""
         Ты профессиональный карьерный консультант
         и эксперт по найму IT-специалистов.
 
@@ -35,7 +36,7 @@ class CoverLetterGenerator:
         Не приписывай кандидату коммерческий опыт,
         если он указан только в учебных проектах.
 
-        Пиши на русском языке.
+        Пиши на {language} языке.
 
         Стиль: профессиональный, уверенный, естественный.
 

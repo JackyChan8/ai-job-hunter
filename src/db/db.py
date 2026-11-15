@@ -13,6 +13,16 @@ def get_connection() -> sqlite3.Connection:
     return connection
 
 
+def _ensure_candidate_table(connection: sqlite3.Connection) -> None:
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS candidate_data (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
 def init_db() -> None:
     """Создаёт только таблицы, необходимые поиску вакансий и источникам."""
     with get_connection() as connection:
@@ -45,6 +55,33 @@ def init_db() -> None:
                 active INTEGER DEFAULT 0
             )
         """)
+        _ensure_candidate_table(connection)
+        connection.commit()
+
+
+def get_candidate_value(key: str) -> str | None:
+    """Профиль и резюме кандидата, загруженные через бота."""
+    with get_connection() as connection:
+        _ensure_candidate_table(connection)
+        row = connection.execute(
+            "SELECT value FROM candidate_data WHERE key = ?",
+            (key,),
+        ).fetchone()
+    return row["value"] if row else None
+
+
+def set_candidate_value(key: str, value: str) -> None:
+    with get_connection() as connection:
+        _ensure_candidate_table(connection)
+        connection.execute(
+            """
+            INSERT INTO candidate_data (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (key, value),
+        )
         connection.commit()
 
 
@@ -128,8 +165,14 @@ def save_telegram_source(
                 last_scanned_at = CURRENT_TIMESTAMP
             """,
             (
-                chat_id, title, username, category, confidence,
-                int(is_job_source), int(python_jobs_present), int(active),
+                chat_id,
+                title,
+                username,
+                category,
+                confidence,
+                int(is_job_source),
+                int(python_jobs_present),
+                int(active),
             ),
         )
         connection.commit()

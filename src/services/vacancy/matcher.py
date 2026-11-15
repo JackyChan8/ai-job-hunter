@@ -4,21 +4,9 @@ from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from src.core import settings
 from src.integrations.openrouter import get_llm
+from src.services.candidate import CandidateProfile, load_candidate_profile
 from src.services.vacancy.schemas import VacancyData
-
-
-class CandidateProfile(BaseModel):
-    target_roles: list[str] = Field(default_factory=list)
-    experience_years: int = 0
-    skills: list[str] = Field(default_factory=list)
-    preferred_work_formats: list[str] = Field(default_factory=list)
-    preferred_employment_types: list[str] = Field(default_factory=list)
-    minimum_salary: int | None = None
-    preferred_locations: list[str] = Field(default_factory=list)
-    languages: list[str] = Field(default_factory=list)
-    additional_information: str = ""
 
 
 class VacancyMatch(BaseModel):
@@ -33,14 +21,21 @@ class VacancyMatch(BaseModel):
 
 class VacancyMatcher:
     def __init__(self, profile_path: str | None = None):
-        self.profile_path = profile_path or settings.CANDIDATE_PROFILE_PATH
-        self.profile = self._load_profile(self.profile_path)
+        # Без profile_path профиль берётся из хранилища при каждой оценке,
+        # поэтому правки через бота применяются сразу.
+        self.profile_path = profile_path
 
         self.llm = get_llm()
         self.structured_llm = self.llm.with_structured_output(
             VacancyMatch,
             method="function_calling",
         )
+
+    @property
+    def profile(self) -> CandidateProfile:
+        if self.profile_path:
+            return self._load_profile(self.profile_path)
+        return CandidateProfile.model_validate(load_candidate_profile())
 
     @staticmethod
     def _load_profile(profile_path: str) -> CandidateProfile:
